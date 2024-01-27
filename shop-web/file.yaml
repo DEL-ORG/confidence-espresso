@@ -1,0 +1,151 @@
+NAME: shop-web
+LAST DEPLOYED: Fri Jan 26 21:18:43 2024
+NAMESPACE: default
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+HOOKS:
+MANIFEST:
+---
+# Source: shop-web/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: espresso-shop-web
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+---
+# Source: shop-web/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-shop-web
+  labels: 
+    name: espresso-shop-web 
+    version: v1
+---
+# Source: shop-web/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+type: Opaque
+data:
+  redis.port: MzY3OQ==  # Base64 encoded value of 6379
+  redis.masterGroupName: bXltYXN0ZXI=  # Base64 encoded value of "mymaster"
+  redis.authKey: c2VuZGVsLXBhc3N3b3Jk  # Base64 encoded value of "sentinel-password"
+  redis.password: c2VkZW0=  # Base64 encoded value of "sedem"
+---
+# Source: shop-web/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-shop-web
+  labels:
+    name: espresso-shop-web 
+spec:
+  type: NodePort
+  ports:
+    - port: 8090
+      targetPort: 80
+      nodePort: 
+      protocol: TCP
+      name: http
+  selector:
+    name: espresso-shop-web 
+    version: v1
+---
+# Source: shop-web/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: espresso-shop-web
+  labels:
+    name: espresso-shop-web
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      name: espresso-shop-web
+      version: v1
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        name: espresso-shop-web
+        version: v1
+    spec:
+      serviceAccountName: espresso-shop-web
+      securityContext:
+
+        {}
+      containers:
+      - name: http
+        securityContext:
+
+            {}
+        image: "s6confidence/espresso-app:web-v1"
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: redis-secret
+        env:
+        - name: ProductCatalogUrl
+          value: http://espresso-shop-product-catalog-svc:8091
+        - name: ReviewsUrl
+          value: http://espresso-shop-reviews-svc:8092
+        - name: MASTER_GROUP_NAME
+          value: mymaster
+        - name: AUTH_KEY
+          value: sentinel-password
+        - name: REDIS_PASSWORD
+          value: sedem                                    
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+
+            limits:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: shop-web/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-shop-web
+  labels: 
+    name: espresso-shop-web
+    version: v1
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: espresso-shop-web
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+NOTES:
+1. Get the application URL by running these commands:
+  http://chart-example.local/

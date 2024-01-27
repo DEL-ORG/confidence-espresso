@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.sv.name }}
+  labels:
+    app: {{ .Values.sv.key }} 
+    version:  {{ .Values.sv.value }} 
+spec:
+{{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+{{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.sv.key }} 
+      version:  {{ .Values.sv.value }} 
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.rollingUpdate.maxUnavailable }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.sv.key }} 
+        version:  {{ .Values.sv.value }}        
+{{- with .Values.podAnnotations }}
+      annotations:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+    spec:
+{{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+      serviceAccountName: {{ .Values.serviceAccount.name1 }}
+      securityContext:
+{{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Values.service.containername }}
+        securityContext:
+{{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"      
+        env:
+        - name: {{ .Values.env.key }}
+          value: {{ .Values.env.value }}
+        - name: {{ .Values.env.key2 }}
+          value: {{ .Values.env.value2 }}
+        - name: {{ .Values.env.key3 }}
+          value: {{ .Values.env.value3 }}
+        - name: {{ .Values.env.key4 }}
+          value: {{ .Values.env.value4 }}          
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: {{ .Values.service.containername }}
+          containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+{{- if .Values.probe.enable }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+{{- end }}
+        resources:
+{{- toYaml .Values.resources | nindent 12 }}
+{{- with .Values.nodeSelector }}
+      nodeSelector:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .Values.affinity }}
+      affinity:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .Values.tolerations }}
+      tolerations:
+{{- toYaml . | nindent 8 }}
+{{- end }}

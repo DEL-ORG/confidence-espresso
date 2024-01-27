@@ -1,0 +1,223 @@
+---
+# Source: shop-reviews/templates/pdb.yaml 
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: expresso-shop-reviews-pdb
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: SERVICE_VERSION 
+      version:  v1
+---
+# Source: shop-reviews/templates/pdb2.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: expresso-shop-reviews-pdb2
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: SERVICE_VERSION
+      version: v2
+---
+# Source: shop-reviews/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-reviews-sa1
+  labels: 
+    app: SERVICE_VERSION 
+    version: v1
+---
+# Source: shop-reviews/templates/serviceaccount2.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-reviews-sa2
+  labels: 
+    app: SERVICE_VERSION 
+    version: v2
+---
+# Source: shop-reviews/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-shop-reviews-svc
+  labels:
+    app: v1
+    app2: v2
+spec:
+  type: NodePort
+  ports:
+    - port: 8092
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    name: v1 
+    name2: v2
+---
+# Source: shop-reviews/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: expresso-shop-reviews-01
+  labels:
+    app: SERVICE_VERSION 
+    version:  v1 
+spec:
+  selector:
+    matchLabels:
+      app: SERVICE_VERSION 
+      version:  v1 
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: SERVICE_VERSION 
+        version:  v1
+    spec:
+      serviceAccountName: 
+      securityContext:
+        {}
+      containers:
+      - name: http
+        securityContext:
+            {}
+        image: "s6confidence/espresso-app:reviews-v1"      
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: danny
+        - name: POSTGRES_DB
+          value: postgres
+        - name: POSTGRES_HOST
+          value:           
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: shop-reviews/templates/deployment2.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: expresso-shop-reviews-02
+  labels:
+    app: SERVICE_VERSION 
+    version: v2
+spec:
+  selector:
+    matchLabels:
+      app: SERVICE_VERSION
+      version: v2
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1      
+  template:
+    metadata:
+      labels: 
+        app: SERVICE_VERSION
+        version: v2
+    spec:
+      serviceAccountName: espresso-reviews-sa2
+      securityContext:
+        {}
+      containers:
+      - name: http
+        securityContext:
+            {}
+        image: "s6confidence/espresso-app:reviews-v1"      
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: danny
+        - name: POSTGRES_DB
+          value: postgres
+        - name: POSTGRES_HOST
+          value:           
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: shop-reviews/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-hpa1
+  labels: 
+    app: SERVICE_VERSION 
+    version:  v1 
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: expresso-shop-reviews-01
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+# Source: shop-reviews/templates/hpa2.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-hpa2
+  labels: 
+    app: SERVICE_VERSION 
+    version:  v2
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: expresso-shop-reviews-02
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

@@ -1,0 +1,8 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.labels.name }}
+spec:
+  maxUnavailable: {{ .Values.podDisruptionBudget }}
+  selector:
+    matchLabels:
