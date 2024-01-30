@@ -2004,7 +2004,7 @@ server:
     service:
       ## @param server.metrics.service.type Argo CD server service type
       ##
-      type: NodePort
+      type: ClusterIP
       ## @param server.metrics.service.port Argo CD server metrics service port
       ##
       port: 8083
@@ -2623,7 +2623,7 @@ repoServer:
     service:
       ## @param repoServer.metrics.service.type Argo CD repo server service type
       ##
-      type: ClusterIP
+      type: NodePort
       ## @param repoServer.metrics.service.port Argo CD repo server metrics service port
       ##
       port: 8084
