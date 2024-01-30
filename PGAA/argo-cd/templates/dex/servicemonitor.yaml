@@ -1,47 +1,49 @@
-{{- if and (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") .Values.dex.metrics.enabled .Values.dex.metrics.serviceMonitor.enabled }}
+{{- /*
+Copyright VMware, Inc.
+SPDX-License-Identifier: APACHE-2.0
+*/}}
+
+{{- if and .Values.dex.enabled .Values.dex.metrics.enabled .Values.dex.metrics.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ template "argo-cd.dex.fullname" . }}
+  name: {{ include "argocd.dex" . }}
   namespace: {{ default .Release.Namespace .Values.dex.metrics.serviceMonitor.namespace | quote }}
-  labels:
-    {{- include "argo-cd.labels" (dict "context" . "component" .Values.dex.name "name" .Values.dex.name) | nindent 4 }}
-    {{- with .Values.dex.metrics.serviceMonitor.selector }}
-      {{- toYaml . | nindent 4 }}
+  {{- $versionLabel := dict "app.kubernetes.io/version" ( include "common.images.version" ( dict "imageRoot" .Values.dex.image "chart" .Chart ) ) }}
+  {{- $labels := include "common.tplvalues.merge" ( dict "values" ( list .Values.commonLabels $versionLabel ) "context" . ) }}
+  labels: {{- include "common.labels.standard" ( dict "customLabels" $labels "context" $ ) | nindent 4 }}
+    {{- if .Values.dex.metrics.serviceMonitor.selector }}
+    {{- include "common.tplvalues.render" (dict "value" .Values.dex.metrics.serviceMonitor.selector "context" $) | nindent 4 }}
     {{- end }}
-    {{- with .Values.dex.metrics.serviceMonitor.additionalLabels }}
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
-  {{- with .Values.dex.metrics.serviceMonitor.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
+    app.kubernetes.io/component: dex
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
   {{- end }}
 spec:
+  jobLabel: {{ .Values.dex.metrics.serviceMonitor.jobLabel | quote }}
   endpoints:
-    - port: {{ .Values.dex.metrics.service.portName }}
-      {{- with .Values.dex.metrics.serviceMonitor.interval }}
-      interval: {{ . }}
-      {{- end }}
+    - port: http-metrics
       path: /metrics
-      {{- with .Values.dex.metrics.serviceMonitor.relabelings }}
-      relabelings:
-        {{- toYaml . | nindent 8 }}
+      {{- if .Values.dex.metrics.serviceMonitor.interval }}
+      interval: {{ .Values.dex.metrics.serviceMonitor.interval }}
       {{- end }}
-      {{- with .Values.dex.metrics.serviceMonitor.metricRelabelings }}
-      metricRelabelings:
-        {{- toYaml . |nindent 8 }}
+      {{- if .Values.dex.metrics.serviceMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .Values.dex.metrics.serviceMonitor.scrapeTimeout }}
       {{- end }}
-      {{- with .Values.dex.metrics.serviceMonitor.scheme }}
-      scheme: {{ . }}
+      {{- if .Values.dex.metrics.serviceMonitor.honorLabels }}
+      honorLabels: {{ .Values.dex.metrics.serviceMonitor.honorLabels }}
       {{- end }}
-      {{- with .Values.dex.metrics.serviceMonitor.tlsConfig }}
-      tlsConfig:
-        {{- toYaml . | nindent 8 }}
+      {{- if .Values.dex.metrics.serviceMonitor.metricRelabelings }}
+      metricRelabelings: {{- include "common.tplvalues.render" ( dict "value" .Values.dex.metrics.serviceMonitor.metricRelabelings "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.dex.metrics.serviceMonitor.relabelings }}
+      relabelings: {- include "common.tplvalues.render" ( dict "value" .Values.dex.metrics.serviceMonitor.relabelings "context" $) | nindent 8 }}
       {{- end }}
   namespaceSelector:
     matchNames:
       - {{ .Release.Namespace }}
   selector:
-    matchLabels:
-      {{- include "argo-cd.selectorLabels" (dict "context" . "component" .Values.dex.name "name" .Values.dex.name) | nindent 6 }}
+    matchLabels: {{- include "common.labels.matchLabels" ( dict "customLabels" .Values.commonLabels "context" $ ) | nindent 6 }}
+      app.kubernetes.io/component: dex
 {{- end }}
+
