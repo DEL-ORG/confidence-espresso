@@ -1692,7 +1692,7 @@ server:
   ## @param server.startupProbe.successThreshold Success threshold for startupProbe
   ##
   startupProbe:
-    enabled: false
+    enabled: true
     initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 1
@@ -2004,7 +2004,7 @@ server:
     service:
       ## @param server.metrics.service.type Argo CD server service type
       ##
-      type: NodePort
+      type: ClusterIP
       ## @param server.metrics.service.port Argo CD server metrics service port
       ##
       port: 8083
@@ -2549,7 +2549,7 @@ repoServer:
   service:
     ## @param repoServer.service.type Repo server service type
     ##
-    type: NodePort
+    type: ClusterIP
     ## @param repoServer.service.port Repo server service port
     ##
     port: 8081
@@ -2623,7 +2623,7 @@ repoServer:
     service:
       ## @param repoServer.metrics.service.type Argo CD repo server service type
       ##
-      type: NodePort
+      type: ClusterIP
       ## @param repoServer.metrics.service.port Argo CD repo server metrics service port
       ##
       port: 8084
@@ -2918,7 +2918,7 @@ dex:
   ## Enable Dex deployment
   ## @param dex.enabled Enable the creation of a Dex deployment for SSO
   ##
-  enabled: true
+  enabled: false
   ## @param dex.replicaCount Number of Dex replicas to deploy
   ##
   replicaCount: 1
@@ -2932,7 +2932,7 @@ dex:
   ## @param dex.startupProbe.successThreshold Success threshold for startupProbe
   ##
   startupProbe:
-    enabled: false
+    enabled: true
     initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 1
