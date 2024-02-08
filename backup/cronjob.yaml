@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-backup
+spec:
+  schedule: "* * * * *"  # Run the job every minute
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: my-backup
+            image: s6confidence/postgres-backup:v1.1.0  # Replace with your Docker image name and tag
+            imagePullPolicy: IfNotPresent
+            # env:
+            #   - name: AWS_ACCESS_KEY_ID
+            #     value: "your-aws-access-key-id"
+            #   - name: AWS_SECRET_ACCESS_KEY
+            #     value: "your-aws-secret-access-key"
+            #   - name: AWS_DEFAULT_REGION
+            #     value: "your-aws-region"
+            # volumeMounts:
+            # - name: backup-volume
+            #   mountPath: /backup
+          restartPolicy: OnFailure
+          # volumes:
+          # - name: backup-volume
+          #   persistentVolumeClaim:
+          #     claimName: your-pvc-name  # Replace with your PersistentVolumeClaim name
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
