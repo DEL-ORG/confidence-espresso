@@ -4,7 +4,7 @@ metadata:
   name: postgres-cm
 data:
    DB_HOST: "db-postgresql-nyc3-26515-do-user-12198957-0.c.db.ondigitalocean.com"
-   DB_PORT:  "25060"
+   DB_PORT: "25060"
    DB_NAME: "s6confidence"
    DB_USER: "doadmin"
    AWS_DEFAULT_REGION: "us-east-1"

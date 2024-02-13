@@ -1,19 +1,19 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: backup-job
+  name: my-restore
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "* * * * *"
   jobTemplate:
     spec:
       template:
         spec:
           containers:
-          - name: restore
-            image: devopseasylearning/angel-backup-restore-master-a1:v1.1.0
+          - name: my-restore
+            image: s6confidence/backup-restore:v1
             envFrom:
             - configMapRef:
-                name: postgres-cm
+                name: my-restore
             - secretRef:
                 name: aws-secret
           restartPolicy: OnFailure
