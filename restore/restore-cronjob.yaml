@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-job
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: restore
+            image: devopseasylearning/angel-backup-restore-master-a1:v1.1.0
+            envFrom:
+            - configMapRef:
+                name: postgres-cm
+            - secretRef:
+                name: aws-secret
+          restartPolicy: OnFailure
+  successfulJobsHistoryLimit: 3
