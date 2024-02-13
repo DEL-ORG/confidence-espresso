@@ -40,8 +40,8 @@ function apt_os {
         pip3 
         git 
         make
-        mysql
-        psql  
+        mysql-server
+        postgresql  
         python3-pip 
         openssl 
         rsync 
@@ -82,6 +82,30 @@ function apt_software {
         rm -rf aws
     fi
 
+    ## Install Docker
+    # https://docs.docker.com/engine/install/ubuntu/
+    sudo apt-get remove docker docker-engine docker.io containerd runc -y
+    sudo apt-get update
+    sudo apt-get install \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    sudo apt-get update
+    sudo apt install docker-ce docker-ce-cli containerd.io -y
+    sudo systemctl start docker
+    sudo systemctl enable docker
+
+    ## chmod the Docker socket. the Docker daemon does not have the necessary permissions to access the Docker socket file located at /var/run/docker.sock
+    sudo chown root:docker /var/run/docker.sock
+    sudo chmod 777 /var/run/docker.sock
+
     # Install Terrafrom on Ubuntu Machine
     wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
     echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
@@ -108,7 +132,7 @@ function apt_software {
     sudo apt install openjdk-11-jdk -y
     wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip
     unzip gradle-${GRADLE_VERSION}-bin.zip
-    mv gradle-${GRADLE_VERSION} /opt/gradle-${GRADLE_VERSION}
+    sudo mv gradle-${GRADLE_VERSION} /opt/gradle-${GRADLE_VERSION}
     /opt/gradle-${GRADLE_VERSION}/bin/gradle --version
 
     ## Install kubectl
@@ -157,46 +181,20 @@ function apt_software {
     sudo apt-get -y update
     sudo apt-get install trivy -y
 
-    ## Install ArgoCD agent
+        ## Install ArgoCD agent
     wget https://github.com/argoproj/argo-cd/releases/download/v2.8.5/argocd-linux-amd64
     chmod +x argocd-linux-amd64
     sudo mv argocd-linux-amd64 /usr/local/bin/argocd
     argocd version
-
-    ## Install Docker
-    # https://docs.docker.com/engine/install/ubuntu/
-    sudo apt-get remove docker docker-engine docker.io containerd runc -y
-    sudo apt-get update
-    sudo apt-get install \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release
-    sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg
-    sudo apt-get update
-    sudo apt install docker-ce docker-ce-cli containerd.io -y
-    sudo systemctl start docker
-    sudo systemctl enable docker
-
-    ## chmod the Docker socket. the Docker daemon does not have the necessary permissions to access the Docker socket file located at /var/run/docker.sock
-    sudo chown root:docker /var/run/docker.sock
-    sudo chmod 666 /var/run/docker.sock
 }
 
 function user_setup {
-cat /tmp/users.txt
+    cat /tmp/users.txt
 
     username=$(cat /tmp/users.txt | tr '[A-Z]' '[a-z]')
     GROUP_NAME="tools"
 
-    # cat /etc/group |grep -w tools &>/dev/nul || sudo groupadd $GROUP_NAME
-
-    if grep -q "^$GROUP_NAME:" /etc/group; then
+    if sudo grep -q "^$GROUP_NAME:" /etc/group; then
         echo "Group '$GROUP_NAME' already exists."
     else
         sudo groupadd "$GROUP_NAME"
@@ -210,10 +208,9 @@ cat /tmp/users.txt
         echo "Group '$GROUP_NAME' added to sudoers with NOPASSWD: ALL."
     fi
 
-    ## allow automation tools to access docker
     for i in $username
     do 
-        if grep -q "^$i" /etc/sudoers; then
+        if sudo grep -q "^$i" /etc/sudoers; then
             echo "User '$i' is already in sudoers."
         else
             echo "$i ALL=(ALL) NOPASSWD: /usr/bin/docker" | sudo tee -a /etc/sudoers
@@ -222,29 +219,24 @@ cat /tmp/users.txt
 
     for users in $username
     do
-        ls /home |grep -w $users &>/dev/nul || mkdir -p /home/$users
-        cat /etc/passwd |awk -F: '{print$1}' |grep -w $users &>/dev/nul ||  useradd $users
+        ls /home |grep -w $users &>/dev/null || mkdir -p /home/$users
+        sudo cat /etc/passwd |awk -F: '{print$1}' |grep -w $users &>/dev/null || sudo useradd $users
         sudo chown -R $users:$users /home/$users
         sudo usermod -s /bin/bash -aG tools $users
         sudo usermod -s /bin/bash -aG docker $users
         echo -e "$users\n$users" |passwd "$users"
     done
 
-    ## Set vim as default text editor
     sudo update-alternatives --set editor /usr/bin/vim.basic
     sudo update-alternatives --set vi /usr/bin/vim.basic
 }
 
 function enable_password_authentication {
-    # Check if password authentication is already enabled
-    if grep -q "PasswordAuthentication yes" /etc/ssh/sshd_config; then
+    if sudo grep -q "PasswordAuthentication yes" /etc/ssh/sshd_config; then
         echo "Password authentication is already enabled."
     else
-        # Enable password authentication by modifying the SSH configuration file
         sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
         echo "Password authentication has been enabled in /etc/ssh/sshd_config."
-
-        # Restart the SSH service to apply changes
         sudo systemctl restart ssh
         echo "SSH service has been restarted."
     fi
@@ -260,6 +252,6 @@ then
     user_setup
     enable_password_authentication
 else
-    echo "HUMMMMMMMMMM. I don't know this OS"
-    exit
+    echo "Unknown or unsupported OS."
+    exit 1
 fi
