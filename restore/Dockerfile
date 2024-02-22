@@ -38,4 +38,3 @@ RUN chmod +x /restore/restore.sh
 
 # Run the backup script as the entrypoint
 CMD ["./restore.sh"]
-
